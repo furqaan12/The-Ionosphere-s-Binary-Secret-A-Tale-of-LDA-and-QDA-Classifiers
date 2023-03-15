@@ -1,0 +1,151 @@
+### ML_HW4_LDA_QDA.py
+
+import os
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+
+from sklearn.model_selection import StratifiedKFold
+from sklearn.discriminant_analysis import LinearDiscriminantAnalysis, QuadraticDiscriminantAnalysis
+from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay, roc_curve, auc, RocCurveDisplay
+from sklearn import metrics
+
+def calc_accuracy(matrix):    
+    total = sum(sum(matrix))   
+    accuracy = (matrix[0,0]+matrix[1,1])/total
+    return accuracy
+
+def calc_sensitivity(matrix):    
+    sensitivity = matrix[0,0]/(matrix[0,0]+matrix[0,1])
+    return sensitivity
+
+def calc_specificity(matrix):
+    specificity = matrix[1,1]/(matrix[1,0]+matrix[1,1])
+    return specificity
+    
+def calc_specificity(matrix):
+    specificity = matrix[1,1]/(matrix[1,0]+matrix[1,1])
+    return specificity
+
+def calc_fscore(matrix):
+    fscore = matrix[0,0]/(matrix[0,0]+0.5*(matrix[1,0]+matrix[0,1]))
+    return fscore    
+
+# Go to folder where the dataset file is located
+os.chdir(r'C:\Users\Lenovo\AppData\Local\Programs\Python\Python310')
+
+# Load dataset file
+dataframe = pd.read_csv('ionosphere.data', sep = ',')
+
+# Separate the Label from the Features
+x_data = dataframe.iloc[:,:-1]
+y_target = dataframe.iloc[:,-1]
+
+# Cross-validation W/ 5 folds
+kfolds = StratifiedKFold(n_splits=5,shuffle=True,random_state=42)
+clf_lda = LinearDiscriminantAnalysis()
+clf_qda = QuadraticDiscriminantAnalysis()
+
+scores = {"LDA Accuracy":[], "LDA Sensitivity":[], "LDA Specificity":[], "LDA F1-score":[],
+          "QDA Accuracy":[], "QDA Sensitivity":[], "QDA Specificity":[], "QDA F1-score":[]}
+
+matrix = {"LDA Matrix":[], "QDA Matrix":[]}    
+     
+### Split the dataframe into 5 folds and evaluate each fold
+for i, (train_index, test_index) in enumerate(kfolds.split(x_data, y_target)):
+    # Split fold(i)
+    x_train, x_test = x_data.iloc[train_index], x_data.iloc[test_index]
+    y_train, y_test = y_target.iloc[train_index], y_target.iloc[test_index]
+
+    # Fit fold(i)
+    clf_lda.fit(x_train, y_train)
+    clf_qda.fit(x_train, y_train)
+
+    # Predict fold(i)
+    preds_lda = clf_lda.predict(x_test)
+    preds_qda = clf_qda.predict(x_test)
+    
+    # Confusion Matrix fold(i)
+    cmtrx_lda = confusion_matrix(y_test, preds_lda)
+    matrix["LDA Matrix"].append(cmtrx_lda)
+    cmtrx_qda = confusion_matrix(y_test, preds_qda)
+    matrix["QDA Matrix"].append(cmtrx_qda)
+    
+    # Accuracy fold(i)
+    score = calc_accuracy(cmtrx_lda)
+    scores["LDA Accuracy"].append(score)
+    score = calc_accuracy(cmtrx_qda)
+    scores["QDA Accuracy"].append(score)
+   
+    # Sensitivity fold(i)
+    score = calc_sensitivity(cmtrx_lda)
+    scores["LDA Sensitivity"].append(score)
+    score = calc_sensitivity(cmtrx_qda)
+    scores["QDA Sensitivity"].append(score)
+    
+    # Specificity fold(i)
+    score = calc_specificity(cmtrx_lda)
+    scores["LDA Specificity"].append(score)
+    score = calc_specificity(cmtrx_qda)
+    scores["QDA Specificity"].append(score)    
+    
+    # F1-score fold(i)
+    score = calc_fscore(cmtrx_lda)
+    scores["LDA F1-score"].append(score)
+    score = calc_fscore(cmtrx_qda)
+    scores["QDA F1-score"].append(score)
+
+# Print folds matrices
+j = 0
+print("LDA Matrices")
+while j < 5:
+    print("Fold: ", j+1, "\n", matrix["LDA Matrix"][j])
+    j += 1
+
+j = 0
+print("QDA Matrices")
+while j < 5:
+    print("Fold: ", j+1, "\n", matrix["QDA Matrix"][j])
+    j += 1
+    
+# Graphical matrices output
+##j = 0    
+##while j < 5:
+##    plt.rcParams.update({'figure.figsize':(4,4), 'figure.dpi':80})
+##    disp = ConfusionMatrixDisplay(confusion_matrix=matrix["LDA Matrix"][j])
+##    disp.plot(cmap=plt.cm.Blues,values_format='g')    
+##    plt.show()   
+##    j += 1
+##
+##j = 0    
+##while j < 5:
+##    plt.rcParams.update({'figure.figsize':(4,4), 'figure.dpi':80})
+##    disp = ConfusionMatrixDisplay(confusion_matrix=matrix["QDA Matrix"][j])
+##    disp.plot(cmap=plt.cm.Blues,values_format='g')    
+##    plt.show()   
+##    j += 1        
+
+# Print folds scores and mean
+for key,values in scores.items():
+    print("\n", key, values, "\n", key, "Mean:", np.mean(values))
+
+# Print ROC & AUC of both models
+proba_lda = clf_lda.predict_proba(x_test)[:,-1]
+fpr, tpr, _ = metrics.roc_curve(y_test, proba_lda, pos_label='g')
+auc = round(metrics.roc_auc_score(y_test, proba_lda), 4)
+plt.plot(fpr,tpr,label="LDA, AUC="+str(auc))
+
+proba_qda = clf_qda.predict_proba(x_test)[:,-1]
+fpr, tpr, _ = metrics.roc_curve(y_test, proba_qda, pos_label='g')
+auc = round(metrics.roc_auc_score(y_test, proba_qda), 4)
+plt.plot(fpr,tpr,label="QDA, AUC="+str(auc))
+
+plt.legend()
+plt.show()
+
+    
+
+
+
+
+
